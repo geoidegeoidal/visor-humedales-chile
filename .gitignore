@@ -1,0 +1,18 @@
+# Dependencias y carpetas pesadas de herramientas
+node_modules/
+.opencode/node_modules/
+
+# Registros y archivos temporales del sistema
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Datos crudos pesados (se conservan solo en el computador, no son necesarios para la web)
+gi-sinader-2024-ckan (3).xlsx
+Humedales_Urbanos (1).geojson
+
+# Variables de entorno y secretos
+.env
+.env.*

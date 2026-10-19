@@ -1,0 +1,2282 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visor Humedales Urbanos &bull; Zero-Server</title>
+  <meta name="description" content="Visor geoespacial Zero-Server de Humedales Urbanos de Chile construido con MapLibre GL JS y Tailwind CSS para GitHub Pages." />
+
+  <!-- Tipografía Swiss: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            swiss: {
+              bg: 'var(--swiss-bg)',
+              fg: 'var(--swiss-fg)',
+              muted: 'var(--swiss-muted)',
+              accent: 'var(--swiss-accent)',
+              border: 'var(--swiss-border)'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'Helvetica Neue', 'Arial', 'sans-serif']
+          },
+          borderRadius: {
+            none: '0px'
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- MapLibre GL JS CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+  <style>
+    /* ============================================================
+       SWISS INTERNATIONAL — Design tokens
+       ============================================================ */
+    :root {
+      --swiss-bg: #FFFFFF;
+      --swiss-fg: #000000;
+      --swiss-muted: #F2F2F2;
+      --swiss-accent: #FF3000;
+      --swiss-border: #000000;
+      --swiss-on-accent: #FFFFFF;
+    }
+    .dark {
+      --swiss-bg: #000000;
+      --swiss-fg: #FFFFFF;
+      --swiss-muted: #1A1A1A;
+      --swiss-border: #FFFFFF;
+    }
+
+    html, body {
+      font-family: Inter, 'Helvetica Neue', Arial, sans-serif;
+    }
+    body {
+      background-color: var(--swiss-bg);
+      color: var(--swiss-fg);
+    }
+
+    /* ---- Pattern textures (depth without shadows) ---- */
+    .swiss-grid-pattern {
+      background-image:
+        linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .dark .swiss-grid-pattern {
+      background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+    }
+    .swiss-dots {
+      background-image: radial-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+    .dark .swiss-dots {
+      background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+    }
+    .swiss-diagonal {
+      background-image: repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.025) 0, rgba(0, 0, 0, 0.025) 1px, transparent 1px, transparent 10px);
+    }
+    .dark .swiss-diagonal {
+      background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0, rgba(255, 255, 255, 0.05) 1px, transparent 1px, transparent 10px);
+    }
+    .swiss-noise {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    }
+
+    /* ---- Focus (high-contrast Swiss red) ---- */
+    button:focus-visible,
+    select:focus-visible,
+    a:focus-visible {
+      outline: 2px solid var(--swiss-accent);
+      outline-offset: 2px;
+    }
+
+    /* ---- MapLibre popup: Swiss overrides (JS markup untouched) ---- */
+    .maplibregl-popup-content {
+      padding: 0 !important;
+      border-radius: 0 !important;
+      border: 2px solid var(--swiss-border) !important;
+      background: var(--swiss-bg) !important;
+      color: var(--swiss-fg) !important;
+      box-shadow: none !important;
+      overflow: hidden;
+    }
+    .maplibregl-popup-tip {
+      border-top-color: var(--swiss-border) !important;
+      border-bottom-color: var(--swiss-border) !important;
+      border-left-color: var(--swiss-border) !important;
+      border-right-color: var(--swiss-border) !important;
+    }
+    .maplibregl-popup-close-button {
+      padding: 6px 10px !important;
+      color: var(--swiss-fg) !important;
+      font-size: 18px !important;
+      font-weight: 700 !important;
+      border-radius: 0 !important;
+      outline: none !important;
+    }
+    .maplibregl-popup-close-button:hover {
+      background-color: var(--swiss-accent) !important;
+      color: var(--swiss-on-accent) !important;
+    }
+    .maplibregl-popup-content .bg-white,
+    .maplibregl-popup-content .dark\:bg-slate-900 { background-color: var(--swiss-bg) !important; }
+    .maplibregl-popup-content .text-slate-800,
+    .maplibregl-popup-content .dark\:text-slate-100 { color: var(--swiss-fg) !important; }
+    .maplibregl-popup-content .text-slate-500,
+    .maplibregl-popup-content .text-slate-400,
+    .maplibregl-popup-content .dark\:text-slate-400 { color: var(--swiss-fg) !important; opacity: 0.65; }
+    .maplibregl-popup-content .text-sky-600,
+    .maplibregl-popup-content .dark\:text-sky-400 { color: var(--swiss-accent) !important; }
+    .maplibregl-popup-content .border-slate-100,
+    .maplibregl-popup-content .dark\:border-slate-800 { border-color: var(--swiss-border) !important; }
+
+    /* ---- Legend generated by JS: style only, never edit JS ---- */
+    #legend-container { color: var(--swiss-fg); }
+    #legend-container .rounded-sm { border-radius: 0 !important; }
+    #legend-container .text-slate-400 { color: var(--swiss-fg) !important; opacity: 0.5; }
+    #legend-container .text-slate-600,
+    #legend-container .dark\:text-slate-300 { color: var(--swiss-fg) !important; }
+
+    /* ---- Status dot: JS sets its classes; force Swiss square via CSS ---- */
+    #layer-status-dot { border-radius: 0 !important; }
+
+    /* ---- Export feedback ---- */
+    .export-spinner {
+      display: inline-block;
+      width: 0.6rem;
+      height: 0.6rem;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 9999px;
+      animation: export-spin 0.7s linear infinite;
+    }
+    @keyframes export-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ---- Reduced motion ---- */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+
+<body class="h-full w-full m-0 p-0 overflow-hidden bg-swiss-bg text-swiss-fg font-sans antialiased select-none">
+
+  <!-- Contenedor del Mapa -->
+  <div id="map" class="h-full w-full"></div>
+
+  <!-- Columna Flotante Superior Izquierda: HUD + Filtros -->
+  <div class="absolute top-4 left-4 right-4 md:right-auto md:w-80 z-10 space-y-3 max-h-[calc(100vh-2rem)] overflow-y-auto">
+
+    <!-- 01. HUD -->
+    <header class="swiss-noise bg-swiss-bg text-swiss-fg border-2 border-swiss-border rounded-none transition-colors duration-150 ease-out">
+
+      <!-- Título y acciones -->
+      <div class="swiss-grid-pattern border-b-2 border-swiss-border p-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="text-[10px] font-black uppercase tracking-widest text-swiss-accent">01. Visor</p>
+            <h1 class="mt-1 text-2xl font-black uppercase leading-[0.9] tracking-tighter">Humedales<br />Urbanos</h1>
+            <p class="mt-2 text-[10px] font-medium uppercase tracking-widest opacity-60">Zero-Server / GitHub Pages</p>
+          </div>
+
+          <div class="flex shrink-0 flex-col gap-1.5">
+            <!-- Botón Centrar Capa -->
+            <button id="btn-fit-bounds" title="Centrar en la capa" class="group flex h-11 w-11 items-center justify-center rounded-none border-2 border-swiss-border bg-swiss-bg text-swiss-fg transition-colors duration-150 ease-out hover:border-swiss-accent hover:bg-swiss-accent hover:text-white">
+              <svg class="h-4 w-4 transition-transform duration-150 ease-out group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0 0l-5-5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+            </button>
+
+            <!-- Conmutador Claro / Oscuro -->
+            <button id="btn-theme-toggle" title="Cambiar tema (Claro / Oscuro)" class="flex h-11 w-11 items-center justify-center rounded-none border-2 border-swiss-border bg-swiss-bg text-swiss-fg transition-colors duration-150 ease-out hover:border-swiss-accent hover:bg-swiss-accent hover:text-white">
+              <!-- Icono Sol (se muestra en modo oscuro) -->
+              <svg id="icon-sun" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              <!-- Icono Luna (se muestra en modo claro) -->
+              <svg id="icon-moon" class="h-4 w-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Estado de la capa -->
+      <div class="flex items-center justify-between gap-3 p-4">
+        <div class="flex min-w-0 items-center gap-2">
+          <span id="layer-status-dot" class="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400 animate-pulse"></span>
+          <span id="layer-status-text" class="truncate text-[10px] font-bold uppercase tracking-widest">Cargando capa...</span>
+        </div>
+        <span id="features-count-badge" class="shrink-0 border-2 border-swiss-border px-2 py-1 text-[10px] font-black uppercase tracking-widest">0 entidades</span>
+      </div>
+
+    </header>
+
+    <!-- 02. Filtros + 03. Leyenda -->
+    <section class="swiss-noise bg-swiss-bg text-swiss-fg border-2 border-swiss-border rounded-none transition-colors duration-150 ease-out">
+
+      <div class="flex items-center justify-between gap-3 border-b-2 border-swiss-border p-4">
+        <h2 class="text-[10px] font-black uppercase tracking-widest"><span class="text-swiss-accent">02.</span> Filtros</h2>
+        <button id="btn-reset-filters" title="Restablecer filtros" class="inline-flex min-h-[44px] items-center text-[10px] font-bold uppercase tracking-widest underline decoration-2 underline-offset-4 transition-colors duration-150 ease-out hover:text-swiss-accent">Restablecer</button>
+      </div>
+
+      <div class="swiss-dots space-y-3 p-4">
+        <label class="block">
+          <span class="mb-1 block text-[10px] font-bold uppercase tracking-widest opacity-50">Región</span>
+          <select id="filter-region" class="min-h-[44px] w-full rounded-none border-2 border-swiss-border bg-swiss-bg px-3 text-xs font-semibold uppercase tracking-wide text-swiss-fg transition-colors duration-150 ease-out focus:border-swiss-accent focus:outline-none">
+            <option value="">Todas las regiones</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-[10px] font-bold uppercase tracking-widest opacity-50">Comuna</span>
+          <select id="filter-comuna" class="min-h-[44px] w-full rounded-none border-2 border-swiss-border bg-swiss-bg px-3 text-xs font-semibold uppercase tracking-wide text-swiss-fg transition-colors duration-150 ease-out focus:border-swiss-accent focus:outline-none">
+            <option value="">Todas las comunas</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-[10px] font-bold uppercase tracking-widest opacity-50">Proceso</span>
+          <select id="filter-proceso" class="min-h-[44px] w-full rounded-none border-2 border-swiss-border bg-swiss-bg px-3 text-xs font-semibold uppercase tracking-wide text-swiss-fg transition-colors duration-150 ease-out focus:border-swiss-accent focus:outline-none">
+            <option value="">Todos los procesos</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="border-t-2 border-swiss-border p-4">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-[10px] font-bold uppercase tracking-widest opacity-50">Exportar filtrados</span>
+          <div class="flex gap-2">
+            <button id="export-humedales-geojson" type="button" disabled class="inline-flex min-h-[44px] items-center border-2 border-swiss-border px-3 text-[10px] font-bold uppercase tracking-widest transition-colors duration-150 ease-out hover:border-swiss-accent hover:bg-swiss-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-swiss-border disabled:hover:bg-swiss-bg disabled:hover:text-swiss-fg">GeoJSON</button>
+            <button id="export-humedales-shapefile" type="button" disabled class="inline-flex min-h-[44px] items-center border-2 border-swiss-border px-3 text-[10px] font-bold uppercase tracking-widest transition-colors duration-150 ease-out hover:border-swiss-accent hover:bg-swiss-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-swiss-border disabled:hover:bg-swiss-bg disabled:hover:text-swiss-fg">Shapefile</button>
+          </div>
+        </div>
+        <p id="export-humedales-status" role="status" aria-live="polite" class="mt-2 min-h-[1em] text-[10px] font-medium uppercase tracking-widest opacity-60"></p>
+      </div>
+
+      <div class="border-t-2 border-swiss-border">
+        <h3 class="px-4 pt-4 text-[10px] font-black uppercase tracking-widest"><span class="text-swiss-accent">03.</span> Leyenda</h3>
+        <div id="legend-container" class="swiss-diagonal p-4"></div>
+      </div>
+
+    </section>
+
+    <!-- 04. Capas (visibilidad independiente) -->
+    <section class="swiss-noise bg-swiss-bg text-swiss-fg border-2 border-swiss-border rounded-none transition-colors duration-150 ease-out">
+
+      <div class="border-b-2 border-swiss-border p-4">
+        <h2 class="text-[10px] font-black uppercase tracking-widest"><span class="text-swiss-accent">04.</span> Capas</h2>
+      </div>
+
+      <div class="swiss-dots p-4">
+        <label class="flex min-h-[44px] cursor-pointer items-center justify-between gap-3">
+          <span class="text-[10px] font-bold uppercase tracking-widest">Humedales Urbanos</span>
+          <input id="toggle-humedales" type="checkbox" checked class="h-5 w-5 shrink-0 cursor-pointer accent-swiss-accent" />
+        </label>
+        <label class="flex min-h-[44px] cursor-pointer items-center justify-between gap-3 border-t-2 border-swiss-border">
+          <span class="text-[10px] font-bold uppercase tracking-widest">SINADER 2024</span>
+          <input id="toggle-sinader" type="checkbox" checked class="h-5 w-5 shrink-0 cursor-pointer accent-swiss-accent" />
+        </label>
+        <label class="flex min-h-[44px] cursor-pointer items-center justify-between gap-3 border-t-2 border-swiss-border">
+          <span class="text-[10px] font-bold uppercase tracking-widest">Áreas de influencia</span>
+          <input id="toggle-buffer" type="checkbox" disabled class="h-5 w-5 shrink-0 cursor-pointer accent-swiss-accent disabled:cursor-not-allowed disabled:opacity-30" />
+        </label>
+      </div>
+
+    </section>
+
+    <!-- 05. Capa secundaria: SINADER 2024 -->
+    <section class="swiss-noise bg-swiss-bg text-swiss-fg border-2 border-swiss-border rounded-none transition-colors duration-150 ease-out">
+
+      <div class="flex items-center justify-between gap-3 border-b-2 border-swiss-border p-4">
+        <h2 class="text-[10px] font-black uppercase tracking-widest"><span class="text-swiss-accent">05.</span> SINADER 2024</h2>
+        <button id="btn-reset-filters-sinader" title="Restablecer filtros SINADER" class="inline-flex min-h-[44px] items-center text-[10px] font-bold uppercase tracking-widest underline decoration-2 underline-offset-4 transition-colors duration-150 ease-out hover:text-swiss-accent">Restablecer</button>
+      </div>
+
+      <div class="swiss-dots space-y-3 p-4">
+        <label class="block">
+          <span class="mb-1 block text-[10px] font-bold uppercase tracking-widest opacity-50">Región</span>
+          <select id="filter-sinader-region" class="min-h-[44px] w-full rounded-none border-2 border-swiss-border bg-swiss-bg px-3 text-xs font-semibold uppercase tracking-wide text-swiss-fg transition-colors duration-150 ease-out focus:border-swiss-accent focus:outline-none">
+            <option value="">Todas las regiones</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-[10px] font-bold uppercase tracking-widest opacity-50">Rubro</span>
+          <select id="filter-sinader-rubro" class="min-h-[44px] w-full rounded-none border-2 border-swiss-border bg-swiss-bg px-3 text-xs font-semibold uppercase tracking-wide text-swiss-fg transition-colors duration-150 ease-out focus:border-swiss-accent focus:outline-none">
+            <option value="">Todos los rubros</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="border-t-2 border-swiss-border p-4">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-[10px] font-bold uppercase tracking-widest opacity-50">Exportar filtrados</span>
+          <div class="flex gap-2">
+            <button id="export-sinader-geojson" type="button" disabled class="inline-flex min-h-[44px] items-center border-2 border-swiss-border px-3 text-[10px] font-bold uppercase tracking-widest transition-colors duration-150 ease-out hover:border-swiss-accent hover:bg-swiss-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-swiss-border disabled:hover:bg-swiss-bg disabled:hover:text-swiss-fg">GeoJSON</button>
+            <button id="export-sinader-shapefile" type="button" disabled class="inline-flex min-h-[44px] items-center border-2 border-swiss-border px-3 text-[10px] font-bold uppercase tracking-widest transition-colors duration-150 ease-out hover:border-swiss-accent hover:bg-swiss-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-swiss-border disabled:hover:bg-swiss-bg disabled:hover:text-swiss-fg">Shapefile</button>
+          </div>
+        </div>
+        <p id="export-sinader-status" role="status" aria-live="polite" class="mt-2 min-h-[1em] text-[10px] font-medium uppercase tracking-widest opacity-60"></p>
+      </div>
+
+      <div class="flex items-center justify-between gap-3 border-t-2 border-swiss-border p-4">
+        <div class="flex min-w-0 items-center gap-2">
+          <span id="sinader-status-dot" class="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400 animate-pulse"></span>
+          <span id="sinader-status-text" class="truncate text-[10px] font-bold uppercase tracking-widest">Cargando capa...</span>
+        </div>
+        <span id="sinader-count-badge" class="shrink-0 border-2 border-swiss-border px-2 py-1 text-[10px] font-black uppercase tracking-widest">0 entidades</span>
+      </div>
+
+    </section>
+
+    <!-- 06. Análisis de proximidad (buffer) -->
+    <section class="swiss-noise bg-swiss-bg text-swiss-fg border-2 border-swiss-border rounded-none transition-colors duration-150 ease-out">
+
+      <div class="flex items-center justify-between gap-3 border-b-2 border-swiss-border p-4">
+        <h2 class="text-[10px] font-black uppercase tracking-widest"><span class="text-swiss-accent">06.</span> Análisis de proximidad</h2>
+        <button id="btn-clear-buffer" type="button" title="Limpiar resultado" disabled class="inline-flex min-h-[44px] items-center text-[10px] font-bold uppercase tracking-widest underline decoration-2 underline-offset-4 transition-colors duration-150 ease-out hover:text-swiss-accent disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-swiss-fg">Limpiar</button>
+      </div>
+
+      <div class="swiss-dots space-y-3 p-4">
+        <label class="block">
+          <span class="mb-1 block text-[10px] font-bold uppercase tracking-widest opacity-50">Capa base</span>
+          <select id="buffer-layer" class="min-h-[44px] w-full rounded-none border-2 border-swiss-border bg-swiss-bg px-3 text-xs font-semibold uppercase tracking-wide text-swiss-fg transition-colors duration-150 ease-out focus:border-swiss-accent focus:outline-none">
+            <option value="humedales">Humedales Urbanos</option>
+            <option value="sinader">SINADER 2024</option>
+          </select>
+        </label>
+
+        <fieldset class="space-y-1">
+          <legend class="mb-1 block text-[10px] font-bold uppercase tracking-widest opacity-50">Alcance</legend>
+          <label class="flex min-h-[36px] cursor-pointer items-center gap-2 text-[10px] font-bold uppercase tracking-wide">
+            <input id="buffer-scope-all" type="radio" name="buffer-scope" value="all" checked class="h-4 w-4 shrink-0 cursor-pointer accent-swiss-accent" />
+            <span>Todas las entidades</span>
+          </label>
+          <label class="flex min-h-[36px] cursor-pointer items-center gap-2 text-[10px] font-bold uppercase tracking-wide">
+            <input id="buffer-scope-filtered" type="radio" name="buffer-scope" value="filtered" class="h-4 w-4 shrink-0 cursor-pointer accent-swiss-accent" />
+            <span>Solo filtradas (<span id="buffer-scope-count">0</span>)</span>
+          </label>
+          <p id="buffer-scope-note" class="text-[10px] font-medium uppercase tracking-widest opacity-60"></p>
+        </fieldset>
+
+        <label class="block">
+          <span class="mb-1 block text-[10px] font-bold uppercase tracking-widest opacity-50">Distancia (metros)</span>
+          <input id="buffer-distance" type="number" min="1" max="50000" step="any" value="500" inputmode="decimal" class="min-h-[44px] w-full rounded-none border-2 border-swiss-border bg-swiss-bg px-3 text-xs font-semibold tracking-wide text-swiss-fg transition-colors duration-150 ease-out focus:border-swiss-accent focus:outline-none" />
+        </label>
+
+        <label class="flex min-h-[44px] cursor-pointer items-center justify-between gap-3 border-t-2 border-swiss-border pt-3">
+          <span class="text-[10px] font-bold uppercase tracking-widest">Disolver buffers</span>
+          <input id="buffer-dissolve" type="checkbox" class="h-5 w-5 shrink-0 cursor-pointer accent-swiss-accent" />
+        </label>
+
+        <button id="btn-generate-buffer" type="button" class="min-h-[44px] w-full rounded-none border-2 border-swiss-accent bg-swiss-accent px-3 text-[10px] font-black uppercase tracking-widest text-white transition-colors duration-150 ease-out hover:border-swiss-fg hover:bg-swiss-fg disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-swiss-border disabled:hover:bg-swiss-bg disabled:hover:text-swiss-fg">Generar áreas</button>
+
+        <p id="buffer-status" role="status" aria-live="polite" class="min-h-[1em] text-[10px] font-medium uppercase tracking-widest opacity-60"></p>
+        <p id="buffer-summary" class="text-[10px] font-semibold leading-relaxed"></p>
+      </div>
+
+      <div class="border-t-2 border-swiss-border p-4">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-[10px] font-bold uppercase tracking-widest opacity-50">Exportar resultado</span>
+          <div class="flex gap-2">
+            <button id="export-buffer-geojson" type="button" disabled class="inline-flex min-h-[44px] items-center border-2 border-swiss-border px-3 text-[10px] font-bold uppercase tracking-widest transition-colors duration-150 ease-out hover:border-swiss-accent hover:bg-swiss-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-swiss-border disabled:hover:bg-swiss-bg disabled:hover:text-swiss-fg">GeoJSON</button>
+            <button id="export-buffer-shapefile" type="button" disabled class="inline-flex min-h-[44px] items-center border-2 border-swiss-border px-3 text-[10px] font-bold uppercase tracking-widest transition-colors duration-150 ease-out hover:border-swiss-accent hover:bg-swiss-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-swiss-border disabled:hover:bg-swiss-bg disabled:hover:text-swiss-fg">Shapefile</button>
+          </div>
+        </div>
+        <p id="export-buffer-status" role="status" aria-live="polite" class="mt-2 min-h-[1em] text-[10px] font-medium uppercase tracking-widest opacity-60"></p>
+      </div>
+
+    </section>
+
+    <!-- 07. Dashboard analítico (gráficos correlacionados con el mapa) -->
+    <section class="swiss-noise bg-swiss-bg text-swiss-fg border-2 border-swiss-border rounded-none transition-colors duration-150 ease-out">
+
+      <div class="flex items-center justify-between gap-3 border-b-2 border-swiss-border p-4">
+        <h2 class="text-[10px] font-black uppercase tracking-widest"><span class="text-swiss-accent">07.</span> Dashboard</h2>
+        <span id="dashboard-status" role="status" aria-live="polite" class="text-right text-[10px] font-medium uppercase tracking-widest opacity-60"></span>
+      </div>
+
+      <div class="swiss-dots space-y-4 p-4">
+        <div>
+          <p class="mb-1 text-[10px] font-bold uppercase tracking-widest opacity-50">Humedales por región y proceso</p>
+          <div class="relative h-64 border-2 border-swiss-border p-2">
+            <canvas id="chart-humedales-region" aria-label="Conteo de humedales por región y proceso de declaratoria" role="img"></canvas>
+          </div>
+        </div>
+
+        <div>
+          <div class="mb-1 flex items-center justify-between gap-2">
+            <p class="text-[10px] font-bold uppercase tracking-widest opacity-50">SINADER por rubro</p>
+            <div class="flex gap-1" role="group" aria-label="Métrica del gráfico SINADER">
+              <button id="metric-toneladas" type="button" aria-pressed="true" class="inline-flex min-h-[28px] items-center border-2 border-swiss-accent bg-swiss-accent px-2 text-[10px] font-bold uppercase tracking-widest text-white transition-colors duration-150 ease-out">Ton</button>
+              <button id="metric-conteo" type="button" aria-pressed="false" class="inline-flex min-h-[28px] items-center border-2 border-swiss-border px-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-150 ease-out hover:border-swiss-accent hover:bg-swiss-accent hover:text-white">Nº</button>
+            </div>
+          </div>
+          <div class="relative h-72 border-2 border-swiss-border p-2">
+            <canvas id="chart-sinader-rubro" aria-label="Carga declarada o número de establecimientos por rubro SINADER" role="img"></canvas>
+          </div>
+        </div>
+
+        <div>
+          <p class="mb-1 text-[10px] font-bold uppercase tracking-widest opacity-50">Humedales vs carga de residuos por región</p>
+          <div class="relative h-64 border-2 border-swiss-border p-2">
+            <canvas id="chart-region-cruce" aria-label="Número de humedales y toneladas SINADER por región" role="img"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <!-- Notificación Toast de Error (si falla la carga del GeoJSON) -->
+  <div id="toast-error" class="hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 border-2 border-swiss-border bg-swiss-accent px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white">
+    <span aria-hidden="true">!</span>
+    <span id="toast-error-message">Error al cargar la capa GeoJSON.</span>
+  </div>
+
+  <!-- LÓGICA JAVASCRIPT VANILLA -->
+  <script>
+    /**
+     * CONFIGURACIÓN PRINCIPAL (KISS)
+     * Registro de capas: cada capa separa DATOS (origen/geometría) de SIMBOLOGÍA.
+     * Rutas relativas al mismo repositorio/GitHub Pages.
+     */
+    const CONFIG = {
+      // Encuadre inicial: vista territorial de Chile (antes del fitBounds automático)
+      INITIAL_CENTER: [-71.5, -35.7],
+      INITIAL_ZOOM: 4,
+      // Registro de capas espaciales
+      LAYERS: [
+        {
+          id: 'humedales',
+          label: 'Humedales Urbanos',
+          dataUrl: './data/humedales_urbanos.geojson',
+          geometry: 'polygon',
+          sourceId: 'humedales-source',
+          renderLayerIds: ['humedales-fill', 'humedales-outline'],
+          visible: true,
+          // Simbología categórica por proceso de declaratoria
+          symbology: {
+            type: 'categorical',
+            field: 'proceso_humedal_urbano',
+            categories: {
+              'Municipal': { fill: '#0ea5e9', line: '#0369a1', label: 'Municipal' },
+              'de Oficio': { fill: '#f59e0b', line: '#b45309', label: 'De Oficio' }
+            },
+            fallback: { fill: '#64748b', line: '#475569', label: 'Otro' },
+            paint: { fillOpacity: 0.5, lineWidth: 1.2, lineOpacity: 0.9 }
+          }
+        },
+        {
+          id: 'sinader',
+          label: 'SINADER 2024',
+          dataUrl: './data/sinader_2024.geojson',
+          geometry: 'point',
+          sourceId: 'sinader-source',
+          renderLayerIds: ['sinader-circle'],
+          visible: true,
+          // Simbología propia (independiente de humedales)
+          symbology: {
+            type: 'single',
+            paint: {
+              circleColor: '#FF3000',
+              circleRadius: 3.5,
+              circleStrokeColor: '#000000',
+              circleStrokeWidth: 0.5,
+              circleOpacity: 0.75
+            }
+          }
+        }
+      ],
+      // Mapas base 100% libres y públicos (SIN API KEY ni marcas de agua)
+      BASEMAPS: {
+        LIGHT: {
+          id: 'osm-light',
+          tiles: [
+            'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+          ],
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+        },
+        DARK: {
+          id: 'esri-dark',
+          baseTiles: [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+          ],
+          labelTiles: [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}'
+          ],
+          attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ'
+        }
+      }
+    };
+
+    // Acceso a definiciones de capa
+    function layerDef(id) {
+      return CONFIG.LAYERS.find(layer => layer.id === id);
+    }
+    const HUM = layerDef('humedales');
+    const SIN = layerDef('sinader');
+
+    /**
+     * ESTADO DE FILTROS UNIFICADO (única fuente de verdad)
+     * Mapa, contadores, exportación, buffer y dashboard derivan de FILTER_STORE.
+     * Los campos de cada capa se describen una sola vez en FILTER_FIELDS.
+     */
+    const FILTER_DEFAULTS = {
+      humedales: { region: '', comuna: '', proceso: '' },
+      sinader: { region: '', rubro: '' }
+    };
+
+    const FILTER_STORE = (() => {
+      const values = {
+        humedales: { ...FILTER_DEFAULTS.humedales },
+        sinader: { ...FILTER_DEFAULTS.sinader }
+      };
+      const listeners = [];
+      const notify = (layerId) => listeners.slice().forEach((fn) => fn(layerId, values));
+      return {
+        values,
+        get(layerId) { return values[layerId]; },
+        set(layerId, key, value) {
+          const current = values[layerId];
+          if (!current || current[key] === value) return false;
+          current[key] = value;
+          notify(layerId);
+          return true;
+        },
+        setMany(layerId, patch) {
+          const current = values[layerId];
+          if (!current) return false;
+          let changed = false;
+          Object.keys(patch).forEach((key) => {
+            if (current[key] !== patch[key]) { current[key] = patch[key]; changed = true; }
+          });
+          if (changed) notify(layerId);
+          return changed;
+        },
+        reset(layerId) {
+          const defaults = FILTER_DEFAULTS[layerId] || {};
+          const current = values[layerId] || {};
+          let changed = false;
+          Object.keys(defaults).forEach((key) => {
+            if (current[key] !== defaults[key]) { current[key] = defaults[key]; changed = true; }
+          });
+          if (changed) notify(layerId);
+          return changed;
+        },
+        subscribe(listener) {
+          listeners.push(listener);
+          return () => {
+            const index = listeners.indexOf(listener);
+            if (index >= 0) listeners.splice(index, 1);
+          };
+        }
+      };
+    })();
+    window.filterStore = FILTER_STORE;
+
+    // Estado de la aplicación
+    const state = {
+      isDarkMode: true,
+      // Capa primaria (humedales) — se conservan las mismas propiedades de siempre
+      geojsonLoaded: false,
+      currentBounds: null,
+      featureCount: 0,
+      filteredCount: 0,
+      filteredFeatures: [],
+      allFeatures: [],
+      // Referencia viva a los filtros unificados (misma fuente de verdad)
+      filters: FILTER_STORE.get('humedales'),
+      // Capa secundaria (SINADER) — estado propio e independiente
+      sinader: {
+        loaded: false,
+        bounds: null,
+        featureCount: 0,
+        filteredCount: 0,
+        features: [],
+        filteredFeatures: [],
+        filters: FILTER_STORE.get('sinader')
+      },
+      buffer: null
+    };
+    // Expuesto para inspección en consola
+    window.visorState = state;
+
+    // Descriptor único de los campos de filtro por capa (genera expresión y predicado)
+    const FILTER_FIELDS = {
+      humedales: [
+        { key: 'region', prop: 'region' },
+        { key: 'comuna', prop: 'comuna' },
+        { key: 'proceso', prop: HUM.symbology.field }
+      ],
+      sinader: [
+        { key: 'region', prop: 'region' },
+        { key: 'rubro', prop: 'rubro' }
+      ]
+    };
+
+    /**
+     * CONSTRUCTOR DEL ESTILO MAPLIBRE
+     * Incluye ambos mapas base (OSM para claro, ESRI Dark Canvas para oscuro)
+     * pre-cargados como capas raster para conmutación instantánea sin recarga.
+     */
+    const initialMapStyle = {
+      version: 8,
+      sources: {
+        'basemap-light-source': {
+          type: 'raster',
+          tiles: CONFIG.BASEMAPS.LIGHT.tiles,
+          tileSize: 256,
+          attribution: CONFIG.BASEMAPS.LIGHT.attribution
+        },
+        'basemap-dark-base-source': {
+          type: 'raster',
+          tiles: CONFIG.BASEMAPS.DARK.baseTiles,
+          tileSize: 256,
+          attribution: CONFIG.BASEMAPS.DARK.attribution
+        },
+        'basemap-dark-labels-source': {
+          type: 'raster',
+          tiles: CONFIG.BASEMAPS.DARK.labelTiles,
+          tileSize: 256
+        }
+      },
+      layers: [
+        {
+          id: 'basemap-light-layer',
+          type: 'raster',
+          source: 'basemap-light-source',
+          layout: { visibility: 'none' }
+        },
+        {
+          id: 'basemap-dark-base-layer',
+          type: 'raster',
+          source: 'basemap-dark-base-source',
+          layout: { visibility: 'visible' }
+        },
+        {
+          id: 'basemap-dark-labels-layer',
+          type: 'raster',
+          source: 'basemap-dark-labels-source',
+          layout: { visibility: 'visible' }
+        }
+      ]
+    };
+
+    // Inicialización del Mapa
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: initialMapStyle,
+      center: CONFIG.INITIAL_CENTER,
+      zoom: CONFIG.INITIAL_ZOOM,
+      attributionControl: { compact: true }
+    });
+
+    // Controles de navegación nativos de MapLibre (Zoom, Rotación)
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+
+    /**
+     * GESTIÓN DE TEMA CLARO / OSCURO
+     */
+    const btnThemeToggle = document.getElementById('btn-theme-toggle');
+    const iconSun = document.getElementById('icon-sun');
+    const iconMoon = document.getElementById('icon-moon');
+
+    function applyTheme(isDark) {
+      state.isDarkMode = isDark;
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+        iconSun.classList.remove('hidden');
+        iconMoon.classList.add('hidden');
+        if (map.isStyleLoaded()) {
+          map.setLayoutProperty('basemap-light-layer', 'visibility', 'none');
+          map.setLayoutProperty('basemap-dark-base-layer', 'visibility', 'visible');
+          map.setLayoutProperty('basemap-dark-labels-layer', 'visibility', 'visible');
+        }
+      } else {
+        document.documentElement.classList.remove('dark');
+        iconSun.classList.add('hidden');
+        iconMoon.classList.remove('hidden');
+        if (map.isStyleLoaded()) {
+          map.setLayoutProperty('basemap-light-layer', 'visibility', 'visible');
+          map.setLayoutProperty('basemap-dark-base-layer', 'visibility', 'none');
+          map.setLayoutProperty('basemap-dark-labels-layer', 'visibility', 'none');
+        }
+      }
+      if (dashboard.ready) scheduleDashboardRender();
+    }
+
+    btnThemeToggle.addEventListener('click', () => {
+      applyTheme(!state.isDarkMode);
+    });
+
+    /**
+     * UTILIDADES
+     */
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Recorta espacios residuales de los campos de texto del dataset
+    function normalizeFeature(feature) {
+      const props = feature.properties || {};
+      const clean = {};
+      Object.keys(props).forEach(key => {
+        const val = props[key];
+        clean[key] = (typeof val === 'string') ? val.trim() : val;
+      });
+      feature.properties = clean;
+      return feature;
+    }
+
+    // Construye la expresión data-driven de color a partir de la simbología de una capa
+    function buildColorExpression(symbology, paintKey) {
+      const expr = ['match', ['get', symbology.field]];
+      Object.keys(symbology.categories).forEach(key => {
+        expr.push(key, symbology.categories[key][paintKey]);
+      });
+      expr.push(symbology.fallback[paintKey]);
+      return expr;
+    }
+
+    /**
+     * CARGA Y RENDERIZADO GENÉRICO DE UNA CAPA ESPACIAL
+     * Los datos provienen de def.dataUrl; la simbología de def.symbology.
+     */
+    async function loadSpatialLayer(def) {
+      const response = await fetch(def.dataUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: No se pudo obtener ${def.dataUrl}`);
+      }
+
+      const geojsonData = await response.json();
+      const features = (geojsonData.features || []).map(normalizeFeature);
+      geojsonData.features = features;
+
+      map.addSource(def.sourceId, { type: 'geojson', data: geojsonData });
+
+      if (def.geometry === 'polygon') {
+        const [fillId, lineId] = def.renderLayerIds;
+        map.addLayer({
+          id: fillId,
+          type: 'fill',
+          source: def.sourceId,
+          paint: {
+            'fill-color': buildColorExpression(def.symbology, 'fill'),
+            'fill-opacity': def.symbology.paint.fillOpacity
+          }
+        });
+        map.addLayer({
+          id: lineId,
+          type: 'line',
+          source: def.sourceId,
+          paint: {
+            'line-color': buildColorExpression(def.symbology, 'line'),
+            'line-width': def.symbology.paint.lineWidth,
+            'line-opacity': def.symbology.paint.lineOpacity
+          }
+        });
+      } else if (def.geometry === 'point') {
+        const p = def.symbology.paint;
+        map.addLayer({
+          id: def.renderLayerIds[0],
+          type: 'circle',
+          source: def.sourceId,
+          paint: {
+            'circle-color': p.circleColor,
+            'circle-radius': p.circleRadius,
+            'circle-stroke-color': p.circleStrokeColor,
+            'circle-stroke-width': p.circleStrokeWidth,
+            'circle-opacity': p.circleOpacity
+          }
+        });
+      }
+
+      return { features, bounds: calculateBounds(geojsonData) };
+    }
+
+    /**
+     * CARGA DE LA CAPA PRIMARIA (HUMEDALES)
+     */
+    async function loadGeoJsonLayer() {
+      const statusDot = document.getElementById('layer-status-dot');
+      const statusText = document.getElementById('layer-status-text');
+
+      try {
+        const { features, bounds } = await loadSpatialLayer(HUM);
+
+        state.allFeatures = features;
+        state.featureCount = features.length;
+        state.filteredCount = features.length;
+        state.filteredFeatures = features;
+
+        if (bounds) {
+          state.currentBounds = bounds;
+          map.fitBounds(bounds, { padding: 60, maxZoom: 16, duration: 1200 });
+        }
+
+        // Poblar filtros y leyenda, configurar interacción
+        populateFilters();
+        renderLegend();
+        setupFeaturePopups(HUM.renderLayerIds, buildHumedalPopupHtml);
+
+        // Actualizar UI
+        statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+        statusText.textContent = 'Humedales urbanos';
+        state.geojsonLoaded = true;
+        updateCountBadge();
+        updateExportControls('humedales');
+        updateBufferControls();
+        renderDashboard();
+
+      } catch (err) {
+        console.error('Error cargando GeoJSON:', err);
+        statusDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+        statusText.textContent = 'Error de carga';
+        document.getElementById('features-count-badge').textContent = '0 entidades';
+
+        const toast = document.getElementById('toast-error');
+        const toastMsg = document.getElementById('toast-error-message');
+        toastMsg.textContent = `No se pudo cargar la capa: ${err.message}`;
+        toast.classList.remove('hidden');
+      }
+    }
+
+    /**
+     * CARGA DE LA CAPA SECUNDARIA (SINADER 2024)
+     * Se invoca solo después de inicializar MapLibre (map.on('load')).
+     * No mueve la cámara: el encuadre sigue siendo el de humedales.
+     */
+    async function loadSecondaryLayer() {
+      const def = SIN;
+      const statusDot = document.getElementById('sinader-status-dot');
+      const statusText = document.getElementById('sinader-status-text');
+
+      try {
+        const { features, bounds } = await loadSpatialLayer(def);
+
+        state.sinader.loaded = true;
+        state.sinader.features = features;
+        state.sinader.bounds = bounds;
+        state.sinader.featureCount = features.length;
+        state.sinader.filteredCount = features.length;
+        state.sinader.filteredFeatures = features;
+
+        populateSinaderFilters();
+        setupFeaturePopups(def.renderLayerIds, buildEstablecimientoPopupHtml);
+
+        statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+        statusText.textContent = def.label;
+        updateSinaderCountBadge();
+        updateExportControls('sinader');
+        updateBufferControls();
+        renderDashboard();
+
+      } catch (err) {
+        console.error('Error cargando capa secundaria:', err);
+        statusDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+        statusText.textContent = 'Error de carga';
+        document.getElementById('sinader-count-badge').textContent = '0 entidades';
+
+        const toast = document.getElementById('toast-error');
+        const toastMsg = document.getElementById('toast-error-message');
+        toastMsg.textContent = `No se pudo cargar la capa secundaria: ${err.message}`;
+        toast.classList.remove('hidden');
+      }
+    }
+
+    /**
+     * CALCULA LA EXTENSIÓN (BOUNDS) DE CUALQUIER GEOJSON
+     */
+    function calculateBounds(geojson) {
+      const bounds = new maplibregl.LngLatBounds();
+      let hasCoordinates = false;
+
+      function extendCoords(coord) {
+        if (typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+          bounds.extend(coord);
+          hasCoordinates = true;
+        } else if (Array.isArray(coord)) {
+          coord.forEach(extendCoords);
+        }
+      }
+
+      if (geojson.type === 'FeatureCollection' && geojson.features) {
+        geojson.features.forEach(f => {
+          if (f.geometry && f.geometry.coordinates) {
+            extendCoords(f.geometry.coordinates);
+          }
+        });
+      }
+
+      return hasCoordinates ? bounds : null;
+    }
+
+    /**
+     * FILTROS INTERACTIVOS
+     */
+    function populateFilters() {
+      const regions = [...new Set(state.allFeatures.map(f => f.properties.region))]
+        .filter(Boolean).sort((a, b) => a.localeCompare(b, 'es'));
+      document.getElementById('filter-region').innerHTML =
+        '<option value="">Todas las regiones</option>' +
+        regions.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+
+      const procesos = [...new Set(state.allFeatures.map(f => f.properties[HUM.symbology.field]))]
+        .filter(Boolean).sort((a, b) => a.localeCompare(b, 'es'));
+      document.getElementById('filter-proceso').innerHTML =
+        '<option value="">Todos los procesos</option>' +
+        procesos.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+
+      populateComunaFilter('');
+    }
+
+    function populateComunaFilter(region) {
+      const comunas = [...new Set(
+        state.allFeatures
+          .filter(f => !region || f.properties.region === region)
+          .map(f => f.properties.comuna)
+      )].filter(Boolean).sort((a, b) => a.localeCompare(b, 'es'));
+      document.getElementById('filter-comuna').innerHTML =
+        '<option value="">Todas las comunas</option>' +
+        comunas.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    }
+
+    // Predicado único en JS derivado de FILTER_FIELDS
+    function matchesFilters(layerId, properties) {
+      const values = FILTER_STORE.get(layerId);
+      return FILTER_FIELDS[layerId].every(({ key, prop }) => !values[key] || properties[prop] === values[key]);
+    }
+
+    // Expresión MapLibre única derivada de FILTER_FIELDS
+    function toMapLibreFilter(layerId) {
+      const values = FILTER_STORE.get(layerId);
+      const conditions = [];
+      FILTER_FIELDS[layerId].forEach(({ key, prop }) => {
+        if (values[key]) conditions.push(['==', ['get', prop], values[key]]);
+      });
+      return conditions.length ? ['all', ...conditions] : null;
+    }
+
+    // Selección filtrada (se calcula una sola vez por cambio)
+    function selectFiltered(layerId) {
+      const source = layerId === 'humedales' ? state.allFeatures : state.sinader.features;
+      return source.filter((feature) => matchesFilters(layerId, feature.properties));
+    }
+
+    // Pipeline único: selecciona una vez y actualiza mapa, contador, exportación y encuadre
+    function applyLayer(layerId) {
+      const def = layerDef(layerId);
+      const filterExpr = toMapLibreFilter(layerId);
+      def.renderLayerIds.forEach((id) => map.setFilter(id, filterExpr));
+
+      const filtered = selectFiltered(layerId);
+
+      if (layerId === 'humedales') {
+        state.filteredCount = filtered.length;
+        state.filteredFeatures = filtered;
+        updateCountBadge();
+        setExportStatus('humedales', '');
+        updateExportControls('humedales');
+        updateBufferControls();
+        fitToFiltered(filtered);
+      } else {
+        state.sinader.filteredCount = filtered.length;
+        state.sinader.filteredFeatures = filtered;
+        updateSinaderCountBadge();
+        setExportStatus('sinader', '');
+        updateExportControls('sinader');
+        updateBufferControls();
+        fitToSinaderFiltered(filtered);
+      }
+    }
+
+    // Encuadra la cámara a la extensión de los humedales filtrados
+    function fitToFiltered(filteredFeatures) {
+      const hasActiveFilters = state.filters.region || state.filters.comuna || state.filters.proceso;
+
+      if (!hasActiveFilters) {
+        if (state.currentBounds) {
+          map.fitBounds(state.currentBounds, { padding: 60, maxZoom: 16, duration: 800 });
+        }
+        return;
+      }
+
+      if (!filteredFeatures.length) return;
+
+      const bounds = calculateBounds({ type: 'FeatureCollection', features: filteredFeatures });
+      if (bounds) {
+        map.fitBounds(bounds, { padding: 80, maxZoom: 13, duration: 800 });
+      }
+    }
+
+    function updateCountBadge() {
+      const countBadge = document.getElementById('features-count-badge');
+      const active = state.filters.region || state.filters.comuna || state.filters.proceso;
+      if (!state.geojsonLoaded) {
+        countBadge.textContent = '0 entidades';
+        return;
+      }
+      countBadge.textContent = active
+        ? `${state.filteredCount} / ${state.featureCount} entidades`
+        : `${state.featureCount} entidades`;
+    }
+
+    // Sincroniza los selects de humedales con el estado unificado
+    function syncHumedalesSelects() {
+      const values = FILTER_STORE.get('humedales');
+      document.getElementById('filter-region').value = values.region || '';
+      populateComunaFilter(values.region || '');
+      document.getElementById('filter-comuna').value = values.comuna || '';
+      document.getElementById('filter-proceso').value = values.proceso || '';
+    }
+
+    document.getElementById('filter-region').addEventListener('change', (e) => {
+      FILTER_STORE.setMany('humedales', { region: e.target.value, comuna: '' });
+      syncHumedalesSelects();
+      applyLayer('humedales');
+    });
+
+    document.getElementById('filter-comuna').addEventListener('change', (e) => {
+      FILTER_STORE.set('humedales', 'comuna', e.target.value);
+      applyLayer('humedales');
+    });
+
+    document.getElementById('filter-proceso').addEventListener('change', (e) => {
+      FILTER_STORE.set('humedales', 'proceso', e.target.value);
+      applyLayer('humedales');
+    });
+
+    document.getElementById('btn-reset-filters').addEventListener('click', () => {
+      FILTER_STORE.reset('humedales');
+      syncHumedalesSelects();
+      applyLayer('humedales');
+    });
+
+    /**
+     * FILTROS DE LA CAPA SECUNDARIA (SINADER 2024)
+     * Independientes de los filtros de humedales.
+     */
+    function populateSinaderFilters() {
+      const regions = [...new Set(state.sinader.features.map(f => f.properties.region))]
+        .filter(Boolean).sort((a, b) => a.localeCompare(b, 'es'));
+      document.getElementById('filter-sinader-region').innerHTML =
+        '<option value="">Todas las regiones</option>' +
+        regions.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+
+      const rubros = [...new Set(state.sinader.features.map(f => f.properties.rubro))]
+        .filter(Boolean).sort((a, b) => a.localeCompare(b, 'es'));
+      document.getElementById('filter-sinader-rubro').innerHTML =
+        '<option value="">Todos los rubros</option>' +
+        rubros.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+    }
+
+    // El filtrado de SINADER usa el pipeline único applyLayer('sinader').
+
+    // Encuadra la cámara a la extensión de los puntos filtrados (capa secundaria)
+    function fitToSinaderFiltered(filteredFeatures) {
+      const hasActiveFilters = state.sinader.filters.region || state.sinader.filters.rubro;
+
+      if (!hasActiveFilters) {
+        if (state.sinader.bounds) {
+          map.fitBounds(state.sinader.bounds, { padding: 60, maxZoom: 16, duration: 800 });
+        }
+        return;
+      }
+
+      if (!filteredFeatures.length) return;
+
+      const bounds = calculateBounds({ type: 'FeatureCollection', features: filteredFeatures });
+      if (bounds) {
+        map.fitBounds(bounds, { padding: 80, maxZoom: 13, duration: 800 });
+      }
+    }
+
+    function updateSinaderCountBadge() {
+      const badge = document.getElementById('sinader-count-badge');
+      const active = state.sinader.filters.region || state.sinader.filters.rubro;
+      if (!state.sinader.loaded) {
+        badge.textContent = '0 entidades';
+        return;
+      }
+      badge.textContent = active
+        ? `${state.sinader.filteredCount} / ${state.sinader.featureCount} entidades`
+        : `${state.sinader.featureCount} entidades`;
+    }
+
+    // Sincroniza los selects de SINADER con el estado unificado
+    function syncSinaderSelects() {
+      const values = FILTER_STORE.get('sinader');
+      document.getElementById('filter-sinader-region').value = values.region || '';
+      document.getElementById('filter-sinader-rubro').value = values.rubro || '';
+    }
+
+    document.getElementById('filter-sinader-region').addEventListener('change', (e) => {
+      FILTER_STORE.set('sinader', 'region', e.target.value);
+      applyLayer('sinader');
+    });
+
+    document.getElementById('filter-sinader-rubro').addEventListener('change', (e) => {
+      FILTER_STORE.set('sinader', 'rubro', e.target.value);
+      applyLayer('sinader');
+    });
+
+    document.getElementById('btn-reset-filters-sinader').addEventListener('click', () => {
+      FILTER_STORE.reset('sinader');
+      syncSinaderSelects();
+      applyLayer('sinader');
+    });
+
+    /**
+     * ANÁLISIS DE PROXIMIDAD (BUFFER)
+     */
+    const BUFFER_WORKER_URL = './buffer-worker.js';
+    const BUFFER_MIN_METERS = 1;
+    const BUFFER_MAX_METERS = 50000;
+    const BUFFER_SOURCE_LABELS = {
+      humedales: 'Humedales Urbanos',
+      sinader: 'SINADER 2024'
+    };
+
+    let bufferWorker = null;
+    let bufferRequestCounter = 0;
+    let activeBufferRequestId = 0;
+    let isBuffering = false;
+
+    function bufferLayerId() {
+      return document.getElementById('buffer-layer').value;
+    }
+
+    function bufferScope() {
+      return document.getElementById('buffer-scope-filtered').checked ? 'filtered' : 'all';
+    }
+
+    function bufferFeaturesFor(layerId, scope) {
+      if (layerId === 'humedales') {
+        return scope === 'filtered' ? state.filteredFeatures : state.allFeatures;
+      }
+      return scope === 'filtered' ? state.sinader.filteredFeatures : state.sinader.features;
+    }
+
+    function bufferCounts(layerId) {
+      if (layerId === 'humedales') {
+        return { all: state.featureCount, filtered: state.filteredCount };
+      }
+      return { all: state.sinader.featureCount, filtered: state.sinader.filteredCount };
+    }
+
+    function formatBufferDistance(distance) {
+      return Number(distance).toLocaleString('es-CL', { maximumFractionDigits: 2 });
+    }
+
+    function setBufferStatus(message, options) {
+      const el = document.getElementById('buffer-status');
+      if (!el) return;
+      const opts = options || {};
+      el.textContent = '';
+      if (opts.busy) {
+        const spinner = document.createElement('span');
+        spinner.className = 'export-spinner mr-2 align-middle';
+        spinner.setAttribute('aria-hidden', 'true');
+        el.appendChild(spinner);
+      }
+      if (message) el.appendChild(document.createTextNode(message));
+      el.classList.toggle('text-swiss-accent', Boolean(opts.busy || opts.error || opts.validation));
+      el.classList.toggle('opacity-60', !message);
+      if (opts.validation) {
+        el.setAttribute('data-validation', '1');
+      } else {
+        el.removeAttribute('data-validation');
+      }
+    }
+
+    function setBufferSummary() {
+      const el = document.getElementById('buffer-summary');
+      if (!el) return;
+      if (!state.buffer) {
+        el.textContent = '';
+        return;
+      }
+      const meta = state.buffer.meta;
+      const mode = meta.mode === 'disuelto' ? 'Disuelto' : 'Individual';
+      const count = meta.mode === 'disuelto'
+        ? `${meta.sourceCount.toLocaleString('es-CL')} entidades de origen · ${meta.parts.toLocaleString('es-CL')} partes`
+        : `${meta.outputCount.toLocaleString('es-CL')} entidades`;
+      el.textContent = `${BUFFER_SOURCE_LABELS[meta.sourceLayer] || meta.sourceLayer} · ${formatBufferDistance(meta.distance)} m · ${mode} · ${count}`;
+    }
+
+    function updateBufferControls() {
+      const layerId = bufferLayerId();
+      const scope = bufferScope();
+      const counts = bufferCounts(layerId);
+      const features = bufferFeaturesFor(layerId, scope);
+      const busy = isBuffering;
+
+      document.getElementById('buffer-scope-count').textContent = counts.filtered.toLocaleString('es-CL');
+
+      const note = document.getElementById('buffer-scope-note');
+      let noteText = '';
+      if (!counts.all) {
+        noteText = 'La capa aún no está disponible.';
+      } else if (scope === 'filtered' && !counts.filtered) {
+        noteText = 'No hay entidades filtradas para esta capa.';
+      } else if (counts.filtered === counts.all) {
+        noteText = `${counts.all.toLocaleString('es-CL')} entidades disponibles.`;
+      } else {
+        noteText = `${counts.filtered.toLocaleString('es-CL')} de ${counts.all.toLocaleString('es-CL')} entidades cumplen los filtros.`;
+      }
+      note.textContent = noteText;
+      note.classList.toggle('text-swiss-accent', !counts.all || (scope === 'filtered' && !counts.filtered));
+
+      const generateButton = document.getElementById('btn-generate-buffer');
+      const cannotGenerate = busy || features.length === 0;
+      generateButton.disabled = cannotGenerate;
+      generateButton.setAttribute('aria-disabled', String(cannotGenerate));
+
+      document.getElementById('btn-clear-buffer').disabled = busy || !state.buffer;
+      document.getElementById('buffer-layer').disabled = busy;
+      document.getElementById('buffer-distance').disabled = busy;
+      document.getElementById('buffer-dissolve').disabled = busy;
+      document.getElementById('buffer-scope-all').disabled = busy;
+      document.getElementById('buffer-scope-filtered').disabled = busy;
+
+      const toggle = document.getElementById('toggle-buffer');
+      toggle.disabled = !state.buffer;
+      if (!state.buffer) toggle.checked = false;
+
+      updateAllExportControls();
+    }
+
+    function setBufferVisibility(visible) {
+      if (!state.buffer) return;
+      state.buffer.visible = visible;
+      const visibility = visible ? 'visible' : 'none';
+      ['buffer-fill', 'buffer-outline'].forEach(layerId => {
+        if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visibility);
+      });
+    }
+
+    function applyBufferResult(features, meta) {
+      const collection = { type: 'FeatureCollection', features };
+      const bounds = calculateBounds(collection);
+
+      state.buffer = {
+        features,
+        meta,
+        sourceLayer: meta.sourceLayer,
+        bounds,
+        visible: true
+      };
+
+      if (map.getSource('buffer-source')) {
+        map.getSource('buffer-source').setData(collection);
+      } else {
+        map.addSource('buffer-source', { type: 'geojson', data: collection });
+        map.addLayer({
+          id: 'buffer-fill',
+          type: 'fill',
+          source: 'buffer-source',
+          paint: {
+            'fill-color': '#22d3ee',
+            'fill-opacity': 0.16
+          }
+        });
+        map.addLayer({
+          id: 'buffer-outline',
+          type: 'line',
+          source: 'buffer-source',
+          paint: {
+            'line-color': '#0891b2',
+            'line-width': 1.5,
+            'line-opacity': 0.9
+          }
+        });
+      }
+
+      ['buffer-fill', 'buffer-outline'].forEach(layerId => {
+        if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', 'visible');
+      });
+
+      document.getElementById('toggle-buffer').checked = true;
+      if (bounds) {
+        map.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 900 });
+      }
+      setBufferSummary();
+    }
+
+    function disposeBufferWorker() {
+      if (bufferWorker) {
+        bufferWorker.terminate();
+        bufferWorker = null;
+      }
+    }
+
+    function finishBufferError(message) {
+      if (!isBuffering) return;
+      isBuffering = false;
+      activeBufferRequestId = 0;
+      setBufferStatus(`Error: ${message}`, { error: true });
+      updateBufferControls();
+      disposeBufferWorker();
+    }
+
+    function finishBufferSuccess(data) {
+      if (!isBuffering) return;
+      const features = Array.isArray(data.features) ? data.features : [];
+      if (!features.length) {
+        finishBufferError('El análisis no devolvió resultados.');
+        return;
+      }
+
+      const meta = Object.assign({
+        sourceCount: features.length,
+        outputCount: features.length,
+        mode: 'individual',
+        parts: features.length,
+        distance: Number(document.getElementById('buffer-distance').value),
+        sourceLayer: bufferLayerId()
+      }, data.meta || {});
+
+      isBuffering = false;
+      activeBufferRequestId = 0;
+      applyBufferResult(features, meta);
+      setBufferStatus(`Listo: ${meta.sourceCount.toLocaleString('es-CL')} entidades procesadas.`);
+      updateBufferControls();
+    }
+
+    function handleBufferWorkerMessage(event) {
+      const data = event && event.data ? event.data : {};
+      if (!data.requestId || data.requestId !== activeBufferRequestId) return;
+
+      if (data.type === 'progress') {
+        const label = data.phase === 'union' ? 'Disolviendo' : 'Generando buffers';
+        const detail = data.total ? ` ${data.done}/${data.total}` : '';
+        setBufferStatus(`${label}…${detail}`, { busy: true });
+        return;
+      }
+
+      if (data.type === 'error') {
+        finishBufferError(data.message || 'No se pudo completar el análisis.');
+        return;
+      }
+
+      if (data.type === 'done') {
+        finishBufferSuccess(data);
+      }
+    }
+
+    function handleBufferWorkerError(event) {
+      const detail = event && event.message ? ` ${event.message}` : '';
+      finishBufferError(`El cálculo falló en el worker.${detail}`);
+    }
+
+    function ensureBufferWorker() {
+      if (bufferWorker) return bufferWorker;
+      bufferWorker = new Worker(BUFFER_WORKER_URL);
+      bufferWorker.onmessage = handleBufferWorkerMessage;
+      bufferWorker.onerror = handleBufferWorkerError;
+      return bufferWorker;
+    }
+
+    function startBufferAnalysis() {
+      if (isBuffering) {
+        setBufferStatus('Ya hay un cálculo en progreso.', { validation: true });
+        return;
+      }
+
+      const layerId = bufferLayerId();
+      const scope = bufferScope();
+      const features = bufferFeaturesFor(layerId, scope).slice();
+      if (!features.length) {
+        setBufferStatus('No hay entidades para procesar con el alcance elegido.', { validation: true });
+        return;
+      }
+
+      const rawDistance = String(document.getElementById('buffer-distance').value).trim();
+      const distance = Number(rawDistance);
+      if (!rawDistance || !Number.isFinite(distance) || distance < BUFFER_MIN_METERS || distance > BUFFER_MAX_METERS) {
+        setBufferStatus('La distancia debe ser un número entre 1 y 50.000 metros.', { validation: true });
+        return;
+      }
+
+      const dissolve = document.getElementById('buffer-dissolve').checked;
+      isBuffering = true;
+      activeBufferRequestId = ++bufferRequestCounter;
+      setBufferStatus('Generando buffers…', { busy: true });
+      updateBufferControls();
+
+      try {
+        ensureBufferWorker().postMessage({
+          type: 'buffer',
+          requestId: activeBufferRequestId,
+          features,
+          distance,
+          dissolve,
+          sourceLayer: layerId
+        });
+      } catch (err) {
+        finishBufferError(`No se pudo iniciar el cálculo. ${err.message || ''}`.trim());
+      }
+    }
+
+    function clearBufferResult() {
+      if (isBuffering) return;
+
+      ['buffer-fill', 'buffer-outline'].forEach(layerId => {
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+      });
+      if (map.getSource('buffer-source')) map.removeSource('buffer-source');
+
+      state.buffer = null;
+      setBufferSummary();
+      setBufferStatus('Resultado eliminado.');
+      setExportStatus('buffer', '');
+      document.getElementById('toggle-buffer').checked = false;
+      updateBufferControls();
+    }
+
+    document.getElementById('buffer-layer').addEventListener('change', updateBufferControls);
+    document.getElementById('buffer-scope-all').addEventListener('change', updateBufferControls);
+    document.getElementById('buffer-scope-filtered').addEventListener('change', updateBufferControls);
+    document.getElementById('buffer-distance').addEventListener('input', () => {
+      const status = document.getElementById('buffer-status');
+      if (status && status.getAttribute('data-validation') === '1') setBufferStatus('');
+    });
+    document.getElementById('btn-generate-buffer').addEventListener('click', startBufferAnalysis);
+    document.getElementById('btn-clear-buffer').addEventListener('click', clearBufferResult);
+    document.getElementById('toggle-buffer').addEventListener('change', (e) => {
+      setBufferVisibility(e.target.checked);
+    });
+
+    /**
+     * EXPORTACIÓN CLIENT-SIDE DEL SUBCONJUNTO FILTRADO
+     * - GeoJSON: APIs nativas (Blob).
+     * - Shapefile: @mapbox/shp-write cargado bajo demanda desde unpkg.
+     */
+    const SHAPEFILE_LIB_URL = 'https://unpkg.com/@mapbox/shp-write@0.4.3/shpwrite.js';
+    const EXPORT_BASE_NAMES = { humedales: 'humedales', sinader: 'sinader_2024' };
+    const BUFFER_EXPORT_DEF = { id: 'buffer', label: 'Áreas de influencia', geometry: 'polygon' };
+
+    // Límite de 10 caracteres para nombres de campo DBF (alias explícitos y sin colisiones)
+    const DBF_FIELD_ALIASES = {
+      humedales: {
+        objectid: 'objectid',
+        region: 'region',
+        comuna: 'comuna',
+        cod_humedal: 'cod_humed',
+        nombre_humedal: 'nom_humed',
+        ha: 'ha',
+        proceso_humedal_urbano: 'proceso',
+        resolucion: 'resolucion',
+        url_res_bcn: 'url_bcn',
+        url_simbio: 'url_simbio',
+        srid: 'srid'
+      },
+      sinader: {
+        id_vu: 'id_vu',
+        razon_social: 'razon_soci',
+        nombre_establecimiento: 'nom_establ',
+        rubro: 'rubro',
+        region: 'region',
+        comuna: 'comuna',
+        codigo_unico_territorial: 'cod_ut',
+        tipo_recepcion: 'tipo_recep',
+        n_declaraciones: 'n_declarac',
+        toneladas_totales: 'ton_total'
+      },
+      buffer: {
+        capa: 'capa',
+        dist_m: 'dist_m',
+        n_origen: 'n_origen'
+      }
+    };
+
+    let isExporting = false;
+    let shpWritePromise = null;
+
+    function loadShpWrite() {
+      if (window.shpwrite) return Promise.resolve(window.shpwrite);
+      if (shpWritePromise) return shpWritePromise;
+
+      shpWritePromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = SHAPEFILE_LIB_URL;
+        script.async = true;
+        script.onload = () => {
+          if (window.shpwrite) {
+            resolve(window.shpwrite);
+          } else {
+            shpWritePromise = null;
+            reject(new Error('La dependencia de Shapefile no quedó disponible.'));
+          }
+        };
+        script.onerror = () => {
+          shpWritePromise = null;
+          reject(new Error('No se pudo cargar la dependencia de Shapefile. Revisa tu conexión.'));
+        };
+        document.head.appendChild(script);
+      });
+
+      return shpWritePromise;
+    }
+
+    function exportBaseName(layerId) {
+      if (layerId !== 'buffer') return EXPORT_BASE_NAMES[layerId];
+      if (!state.buffer) return 'buffer';
+      const meta = state.buffer.meta;
+      return `buffer_${meta.sourceLayer}_${meta.distance}m_${meta.mode}`;
+    }
+
+    function layerExportInfo(layerId) {
+      if (layerId === 'humedales') {
+        return { loaded: state.geojsonLoaded, features: state.filteredFeatures, def: HUM };
+      }
+      if (layerId === 'buffer') {
+        return {
+          loaded: Boolean(state.buffer && state.buffer.features.length),
+          features: state.buffer ? state.buffer.features : [],
+          def: BUFFER_EXPORT_DEF
+        };
+      }
+      return { loaded: state.sinader.loaded, features: state.sinader.filteredFeatures, def: SIN };
+    }
+
+    function updateExportControls(layerId) {
+      const info = layerExportInfo(layerId);
+      const enabled = info.loaded && info.features.length > 0 && !isExporting;
+      ['geojson', 'shapefile'].forEach(format => {
+        const button = document.getElementById(`export-${layerId}-${format}`);
+        if (!button) return;
+        button.disabled = !enabled;
+        button.setAttribute('aria-disabled', String(!enabled));
+      });
+    }
+
+    function updateAllExportControls() {
+      updateExportControls('humedales');
+      updateExportControls('sinader');
+      updateExportControls('buffer');
+    }
+
+    function setExportStatus(layerId, message, options) {
+      const el = document.getElementById(`export-${layerId}-status`);
+      if (!el) return;
+      const opts = options || {};
+      el.textContent = '';
+      if (opts.busy) {
+        const spinner = document.createElement('span');
+        spinner.className = 'export-spinner mr-2 align-middle';
+        spinner.setAttribute('aria-hidden', 'true');
+        el.appendChild(spinner);
+      }
+      if (message) el.appendChild(document.createTextNode(message));
+      el.classList.toggle('text-swiss-accent', Boolean(opts.busy || opts.error));
+      el.classList.toggle('opacity-60', !message);
+    }
+
+    function exportDateStamp() {
+      const now = new Date();
+      const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+      return local.toISOString().slice(0, 10);
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function downloadGeoJSON(layerId, features) {
+      const baseName = exportBaseName(layerId);
+      const suffix = layerId === 'buffer' ? '' : '_filtrado';
+      const payload = { type: 'FeatureCollection', features };
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/geo+json' });
+      downloadBlob(blob, `${baseName}${suffix}_${exportDateStamp()}.geojson`);
+    }
+
+    function ringSignedArea(ring) {
+      let sum = 0;
+      for (let i = 0; i < ring.length - 1; i++) {
+        sum += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+      }
+      return sum / 2;
+    }
+
+    function rewindPolygonRings(polygon) {
+      return polygon.map((ring, index) => {
+        const isClockwise = ringSignedArea(ring) < 0;
+        const shouldBeClockwise = index === 0;
+        return isClockwise === shouldBeClockwise ? ring : ring.slice().reverse();
+      });
+    }
+
+    function toShapefileGeometry(geometry) {
+      if (!geometry) return geometry;
+      if (geometry.type === 'Polygon') {
+        return {
+          type: 'MultiPolygon',
+          coordinates: [rewindPolygonRings(geometry.coordinates)]
+        };
+      }
+      if (geometry.type === 'MultiPolygon') {
+        return {
+          type: 'MultiPolygon',
+          coordinates: geometry.coordinates.map(rewindPolygonRings)
+        };
+      }
+      return geometry;
+    }
+
+    function toShapefileFeatures(layerId, features, def) {
+      let aliases = DBF_FIELD_ALIASES[layerId] || {};
+      if (layerId === 'buffer' && state.buffer && state.buffer.meta.mode === 'individual') {
+        aliases = {
+          ...(DBF_FIELD_ALIASES[state.buffer.meta.sourceLayer] || {}),
+          buffer_m: 'buffer_m'
+        };
+      }
+      return features.map(feature => {
+        const props = {};
+        Object.keys(feature.properties || {}).forEach(key => {
+          props[aliases[key] || key] = feature.properties[key];
+        });
+        let geometry = feature.geometry;
+        if (def && def.geometry === 'polygon') {
+          geometry = toShapefileGeometry(geometry);
+        }
+        return { type: 'Feature', geometry, properties: props };
+      });
+    }
+
+    function assertShapefileGeometry(features, def) {
+      const allowed = def.geometry === 'polygon' ? ['Polygon', 'MultiPolygon'] : ['Point'];
+      const incompatible = features.find(f => !f.geometry || !allowed.includes(f.geometry.type));
+      if (incompatible) {
+        throw new Error('La capa contiene geometrías incompatibles con Shapefile.');
+      }
+    }
+
+    async function downloadShapefile(layerId, features, def) {
+      assertShapefileGeometry(features, def);
+      const shpwrite = await loadShpWrite();
+      const baseName = exportBaseName(layerId);
+      const suffix = layerId === 'buffer' ? '' : '_filtrado';
+      const collection = {
+        type: 'FeatureCollection',
+        features: toShapefileFeatures(layerId, features, def)
+      };
+      const types = def.geometry === 'polygon' ? { polygon: baseName } : { point: baseName };
+      const result = await shpwrite.zip(collection, {
+        outputType: 'blob',
+        compression: 'DEFLATE',
+        folder: baseName,
+        filename: baseName,
+        types
+      });
+      const blob = (result instanceof Blob) ? result : new Blob([result], { type: 'application/zip' });
+      downloadBlob(blob, `${baseName}${suffix}_${exportDateStamp()}_shp.zip`);
+    }
+
+    async function exportLayer(layerId, format) {
+      if (isExporting) return;
+      const info = layerExportInfo(layerId);
+      if (!info.loaded || !info.features.length) return;
+
+      const features = info.features.slice();
+      isExporting = true;
+      updateAllExportControls();
+      setExportStatus(layerId, 'Generando…', { busy: true });
+
+      try {
+        if (format === 'shapefile') {
+          await downloadShapefile(layerId, features, info.def);
+        } else {
+          downloadGeoJSON(layerId, features);
+        }
+        setExportStatus(layerId, `Listo: ${features.length.toLocaleString('es-CL')} entidades exportadas.`);
+      } catch (err) {
+        console.error('Error exportando capa:', err);
+        setExportStatus(layerId, `Error: ${err.message}`, { error: true });
+      } finally {
+        isExporting = false;
+        updateAllExportControls();
+      }
+    }
+
+    ['humedales', 'sinader', 'buffer'].forEach(layerId => {
+      ['geojson', 'shapefile'].forEach(format => {
+        document.getElementById(`export-${layerId}-${format}`).addEventListener('click', () => {
+          exportLayer(layerId, format);
+        });
+      });
+    });
+
+    updateAllExportControls();
+    updateBufferControls();
+
+    /**
+     * DASHBOARD ANALÍTICO (Chart.js) — gráficos correlacionados con el mapa
+     * Fuente de verdad: FILTER_STORE. Los gráficos derivan del subconjunto
+     * filtrado por capa; sus clics reescriben ese mismo estado (cross-filter).
+     */
+    const CHART_JS_URL = 'https://unpkg.com/chart.js@4.4.3/dist/chart.umd.js';
+    const DASHBOARD_TOP_RUBROS = 12;
+    const OTRAS_LABEL = 'Otras';
+    const SWISS_ACCENT = '#FF3000';
+
+    let chartJsPromise = null;
+
+    function loadChartJs() {
+      if (window.Chart) return Promise.resolve(window.Chart);
+      if (chartJsPromise) return chartJsPromise;
+
+      chartJsPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = CHART_JS_URL;
+        script.async = true;
+        script.onload = () => {
+          if (window.Chart) {
+            resolve(window.Chart);
+          } else {
+            chartJsPromise = null;
+            reject(new Error('Chart.js no quedó disponible.'));
+          }
+        };
+        script.onerror = () => {
+          chartJsPromise = null;
+          reject(new Error('No se pudo cargar Chart.js. Revisa tu conexión.'));
+        };
+        document.head.appendChild(script);
+      });
+
+      return chartJsPromise;
+    }
+
+    const dashboard = {
+      ready: false,
+      metric: 'toneladas',
+      renderScheduled: false,
+      charts: { humedales: null, rubro: null, region: null }
+    };
+
+    function setDashboardStatus(message) {
+      const el = document.getElementById('dashboard-status');
+      if (el) el.textContent = message || '';
+    }
+
+    // --- Utilidades de tema para Chart.js ---
+    function chartInk() {
+      const styles = getComputedStyle(document.documentElement);
+      return {
+        fg: (styles.getPropertyValue('--swiss-fg') || '#000').trim(),
+        grid: state.isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'
+      };
+    }
+
+    function baseChartOptions(indexAxis) {
+      const ink = chartInk();
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: indexAxis || 'y',
+        animation: { duration: 200 },
+        plugins: {
+          legend: { labels: { color: ink.fg, font: { size: 10 } } },
+          tooltip: { titleColor: ink.fg, bodyColor: ink.fg }
+        },
+        scales: {
+          x: { ticks: { color: ink.fg, font: { size: 10 } }, grid: { color: ink.grid } },
+          y: { ticks: { color: ink.fg, font: { size: 10 } }, grid: { color: ink.grid } }
+        }
+      };
+    }
+
+    function applyChartTheme(chart) {
+      const ink = chartInk();
+      const legend = chart.options.plugins && chart.options.plugins.legend;
+      if (legend && legend.labels) legend.labels.color = ink.fg;
+      Object.keys(chart.options.scales || {}).forEach((key) => {
+        const scale = chart.options.scales[key];
+        if (scale.ticks) scale.ticks.color = ink.fg;
+        if (scale.grid && scale.grid.color) scale.grid.color = ink.grid;
+      });
+    }
+
+    // --- Normalización canónica de región (alinea ambas capas) ---
+    function canonicalRegion(raw) {
+      if (!raw) return '';
+      return String(raw)
+        .replace(/[\u2018\u2019]/g, "'")
+        .replace(/Gral\./g, 'General')
+        .replace(/Ibañez/g, 'Ibáñez')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function regionRawByCanon(layerId) {
+      const source = layerId === 'humedales' ? state.allFeatures : state.sinader.features;
+      const map = {};
+      source.forEach((feature) => {
+        const raw = feature.properties.region;
+        const canon = canonicalRegion(raw);
+        if (canon && !(canon in map)) map[canon] = raw;
+      });
+      return map;
+    }
+
+    // --- Agregaciones puras sobre el subconjunto filtrado ---
+    function aggregateHumedalesByRegionProcess() {
+      const field = HUM.symbology.field;
+      const groups = {};
+      state.filteredFeatures.forEach((feature) => {
+        const region = feature.properties.region || 'Sin región';
+        const proceso = feature.properties[field] || 'Otro';
+        if (!groups[region]) groups[region] = { total: 0 };
+        groups[region][proceso] = (groups[region][proceso] || 0) + 1;
+        groups[region].total += 1;
+      });
+      const labels = Object.keys(groups).sort((a, b) => groups[b].total - groups[a].total);
+      return { labels, groups };
+    }
+
+    function aggregateSinaderByRubro(metric) {
+      const totals = {};
+      state.sinader.filteredFeatures.forEach((feature) => {
+        const rubro = feature.properties.rubro || 'Sin rubro';
+        const value = metric === 'conteo' ? 1 : (Number(feature.properties.toneladas_totales) || 0);
+        totals[rubro] = (totals[rubro] || 0) + value;
+      });
+      const ordered = Object.keys(totals).sort((a, b) => totals[b] - totals[a]);
+      const top = ordered.slice(0, DASHBOARD_TOP_RUBROS);
+      const rest = ordered.slice(DASHBOARD_TOP_RUBROS);
+      const labels = top.slice();
+      const values = top.map((rubro) => totals[rubro]);
+      if (rest.length) {
+        labels.push(OTRAS_LABEL);
+        values.push(rest.reduce((sum, rubro) => sum + totals[rubro], 0));
+      }
+      return { labels, values };
+    }
+
+    function aggregateRegionCross() {
+      const humCounts = {};
+      state.filteredFeatures.forEach((feature) => {
+        const canon = canonicalRegion(feature.properties.region);
+        if (canon) humCounts[canon] = (humCounts[canon] || 0) + 1;
+      });
+      const sinTons = {};
+      state.sinader.filteredFeatures.forEach((feature) => {
+        const canon = canonicalRegion(feature.properties.region);
+        if (canon) sinTons[canon] = (sinTons[canon] || 0) + (Number(feature.properties.toneladas_totales) || 0);
+      });
+      const keys = [...new Set([...Object.keys(humCounts), ...Object.keys(sinTons)])]
+        .sort((a, b) => (sinTons[b] || 0) - (sinTons[a] || 0));
+      return {
+        labels: keys,
+        tons: keys.map((key) => sinTons[key] || 0),
+        counts: keys.map((key) => humCounts[key] || 0)
+      };
+    }
+
+    function humedalesProcessCategories() {
+      return Object.keys(HUM.symbology.categories).map((key) => ({
+        value: key,
+        label: HUM.symbology.categories[key].label,
+        color: HUM.symbology.categories[key].fill
+      }));
+    }
+
+    // --- Render de cada visualización ---
+    function renderHumedalesChart() {
+      const chart = dashboard.charts.humedales;
+      if (!chart) return;
+      const { labels, groups } = aggregateHumedalesByRegionProcess();
+      const activeRegion = FILTER_STORE.get('humedales').region;
+      chart.data.labels = labels;
+      chart.data.datasets = humedalesProcessCategories().map((cat) => ({
+        label: cat.label,
+        processValue: cat.value,
+        data: labels.map((region) => (groups[region] && groups[region][cat.value]) || 0),
+        backgroundColor: cat.color,
+        borderColor: labels.map((region) => (region === activeRegion ? SWISS_ACCENT : cat.color)),
+        borderWidth: labels.map((region) => (region === activeRegion ? 2 : 0))
+      }));
+      applyChartTheme(chart);
+      chart.update();
+    }
+
+    function renderSinaderChart() {
+      const chart = dashboard.charts.rubro;
+      if (!chart) return;
+      const metric = dashboard.metric;
+      const { labels, values } = aggregateSinaderByRubro(metric);
+      const activeRubro = FILTER_STORE.get('sinader').rubro;
+      const base = state.isDarkMode ? '#cbd5e1' : '#334155';
+      chart.data.labels = labels;
+      chart.data.datasets = [{
+        label: metric === 'conteo' ? 'Establecimientos' : 'Toneladas',
+        data: values,
+        backgroundColor: labels.map((rubro) => (rubro === activeRubro ? SWISS_ACCENT : base)),
+        borderColor: labels.map((rubro) => (rubro === activeRubro ? SWISS_ACCENT : base)),
+        borderWidth: 0
+      }];
+      applyChartTheme(chart);
+      chart.update();
+    }
+
+    function renderRegionChart() {
+      const chart = dashboard.charts.region;
+      if (!chart) return;
+      const { labels, tons, counts } = aggregateRegionCross();
+      const activeCanon = canonicalRegion(FILTER_STORE.get('humedales').region)
+        || canonicalRegion(FILTER_STORE.get('sinader').region);
+      const barColor = '#22d3ee';
+      chart.data.labels = labels;
+      chart.data.datasets = [
+        {
+          type: 'bar',
+          label: 'Toneladas SINADER',
+          yAxisID: 'y',
+          data: tons,
+          backgroundColor: labels.map((label) => (label === activeCanon ? SWISS_ACCENT : barColor)),
+          borderWidth: 0
+        },
+        {
+          type: 'line',
+          label: 'Humedales',
+          yAxisID: 'y1',
+          data: counts,
+          borderColor: SWISS_ACCENT,
+          backgroundColor: SWISS_ACCENT,
+          tension: 0.25,
+          pointRadius: 3,
+          borderWidth: 2
+        }
+      ];
+      applyChartTheme(chart);
+      chart.update();
+    }
+
+    function renderDashboard() {
+      if (!dashboard.ready) return;
+      renderHumedalesChart();
+      renderSinaderChart();
+      renderRegionChart();
+      updateMetricButtons();
+    }
+
+    // Diferido para no actualizar un gráfico dentro de su propio onClick
+    function scheduleDashboardRender() {
+      if (dashboard.renderScheduled) return;
+      dashboard.renderScheduled = true;
+      const schedule = (cb) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(cb) : setTimeout(cb, 0));
+      schedule(() => {
+        dashboard.renderScheduled = false;
+        renderDashboard();
+      });
+    }
+
+    function updateMetricButtons() {
+      const buttons = { toneladas: 'metric-toneladas', conteo: 'metric-conteo' };
+      const activeClass = 'inline-flex min-h-[28px] items-center border-2 border-swiss-accent bg-swiss-accent px-2 text-[10px] font-bold uppercase tracking-widest text-white transition-colors duration-150 ease-out';
+      const idleClass = 'inline-flex min-h-[28px] items-center border-2 border-swiss-border px-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-150 ease-out hover:border-swiss-accent hover:bg-swiss-accent hover:text-white';
+      Object.keys(buttons).forEach((metric) => {
+        const btn = document.getElementById(buttons[metric]);
+        if (!btn) return;
+        const isActive = dashboard.metric === metric;
+        btn.setAttribute('aria-pressed', String(isActive));
+        btn.className = isActive ? activeClass : idleClass;
+      });
+    }
+
+    function createCharts() {
+      const Chart = window.Chart;
+
+      const humedalesOptions = baseChartOptions('y');
+      humedalesOptions.scales.x.stacked = true;
+      humedalesOptions.scales.y.stacked = true;
+      humedalesOptions.onClick = (evt, elements, chart) => {
+        if (!elements.length) return;
+        const el = elements[0];
+        const region = chart.data.labels[el.index];
+        const processValue = chart.data.datasets[el.datasetIndex].processValue || '';
+        FILTER_STORE.setMany('humedales', { region, comuna: '', proceso: processValue });
+        syncHumedalesSelects();
+        applyLayer('humedales');
+      };
+      dashboard.charts.humedales = new Chart(
+        document.getElementById('chart-humedales-region'),
+        { type: 'bar', data: { labels: [], datasets: [] }, options: humedalesOptions }
+      );
+
+      const rubroOptions = baseChartOptions('y');
+      rubroOptions.onClick = (evt, elements, chart) => {
+        if (!elements.length) return;
+        const rubro = chart.data.labels[elements[0].index];
+        if (rubro === OTRAS_LABEL) return;
+        FILTER_STORE.set('sinader', 'rubro', rubro);
+        syncSinaderSelects();
+        applyLayer('sinader');
+      };
+      dashboard.charts.rubro = new Chart(
+        document.getElementById('chart-sinader-rubro'),
+        { type: 'bar', data: { labels: [], datasets: [] }, options: rubroOptions }
+      );
+
+      const regionOptions = baseChartOptions('x');
+      const ink = chartInk();
+      regionOptions.scales.y1 = {
+        position: 'right',
+        ticks: { color: ink.fg, font: { size: 10 } },
+        grid: { drawOnChartArea: false }
+      };
+      regionOptions.onClick = (evt, elements, chart) => {
+        if (!elements.length) return;
+        applyRegionCrossFilter(chart.data.labels[elements[0].index]);
+      };
+      dashboard.charts.region = new Chart(
+        document.getElementById('chart-region-cruce'),
+        { type: 'bar', data: { labels: [], datasets: [] }, options: regionOptions }
+      );
+    }
+
+    // --- Cross-filter: gráfico -> estado unificado -> mapa ---
+    function applyRegionCrossFilter(canon) {
+      if (!canon) return;
+      const humValue = regionRawByCanon('humedales')[canon] || '';
+      const sinValue = regionRawByCanon('sinader')[canon] || '';
+      FILTER_STORE.setMany('humedales', { region: humValue, comuna: '' });
+      FILTER_STORE.set('sinader', 'region', sinValue);
+      syncHumedalesSelects();
+      syncSinaderSelects();
+      applyLayer('humedales');
+      applyLayer('sinader');
+    }
+
+    document.getElementById('metric-toneladas').addEventListener('click', () => {
+      if (dashboard.metric === 'toneladas') return;
+      dashboard.metric = 'toneladas';
+      renderSinaderChart();
+      updateMetricButtons();
+    });
+
+    document.getElementById('metric-conteo').addEventListener('click', () => {
+      if (dashboard.metric === 'conteo') return;
+      dashboard.metric = 'conteo';
+      renderSinaderChart();
+      updateMetricButtons();
+    });
+
+    async function initDashboard() {
+      try {
+        await loadChartJs();
+      } catch (err) {
+        console.error('Error cargando Chart.js:', err);
+        setDashboardStatus('Error: no se pudo cargar Chart.js.');
+        return;
+      }
+      dashboard.ready = true;
+      createCharts();
+      FILTER_STORE.subscribe(() => scheduleDashboardRender());
+      renderDashboard();
+      setDashboardStatus('');
+    }
+
+    /**
+     * VISIBILIDAD INDEPENDIENTE POR CAPA
+     */
+    function setLayerVisibility(layerId, visible) {
+      const def = layerDef(layerId);
+      def.visible = visible;
+      const visibility = visible ? 'visible' : 'none';
+      def.renderLayerIds.forEach(id => {
+        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visibility);
+      });
+    }
+
+    document.getElementById('toggle-humedales').addEventListener('change', (e) => {
+      setLayerVisibility('humedales', e.target.checked);
+    });
+
+    document.getElementById('toggle-sinader').addEventListener('change', (e) => {
+      setLayerVisibility('sinader', e.target.checked);
+    });
+
+    /**
+     * LEYENDA DE SIMBOLOGÍA
+     */
+    function renderLegend() {
+      const items = Object.keys(HUM.symbology.categories)
+        .map(key => {
+          const cat = HUM.symbology.categories[key];
+          return `
+            <div class="flex items-center space-x-2">
+              <span class="w-3 h-3 rounded-sm border" style="background:${cat.fill};border-color:${cat.line}"></span>
+              <span class="text-slate-600 dark:text-slate-300">${escapeHtml(cat.label)}</span>
+            </div>`;
+        }).join('');
+
+      document.getElementById('legend-container').innerHTML = `
+        <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Proceso de declaratoria</div>
+        <div class="space-y-1 text-xs">${items}</div>`;
+    }
+
+    /**
+     * POPUPS Y EFECTOS DE CURSOR
+     */
+    function setupFeaturePopups(layerIds, buildHtml) {
+      layerIds.forEach(layerId => {
+        // Cambiar cursor a pointer al pasar sobre una entidad
+        map.on('mouseenter', layerId, () => {
+          map.getCanvas().style.cursor = 'pointer';
+        });
+
+        map.on('mouseleave', layerId, () => {
+          map.getCanvas().style.cursor = '';
+        });
+
+        // Mostrar popup con los atributos de la entidad al hacer click
+        map.on('click', layerId, (e) => {
+          if (!e.features || !e.features.length) return;
+          const feature = e.features[0];
+          const props = feature.properties || {};
+
+          new maplibregl.Popup({ offset: 12, closeButton: true })
+            .setLngLat(e.lngLat)
+            .setHTML(buildHtml(props))
+            .addTo(map);
+        });
+      });
+    }
+
+    function buildHumedalPopupHtml(props) {
+      const ha = (props.ha !== undefined && props.ha !== null && props.ha !== '')
+        ? `${Number(props.ha).toLocaleString('es-CL', { maximumFractionDigits: 2 })} ha`
+        : '—';
+
+      const rows = [
+        ['Código', props.cod_humedal],
+        ['Región', props.region],
+        ['Comuna', props.comuna],
+        ['Superficie', ha],
+        ['Proceso', props[HUM.symbology.field]],
+        ['Resolución', props.resolucion]
+      ].filter(([, value]) => value !== undefined && value !== null && value !== '');
+
+      const body = rows.map(([key, value]) => `
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-500 dark:text-slate-400">${escapeHtml(key)}:</span>
+          <span class="font-medium text-right">${escapeHtml(value)}</span>
+        </div>`).join('');
+
+      const links = [];
+      if (props.url_res_bcn) {
+        links.push(`<a href="${escapeHtml(props.url_res_bcn)}" target="_blank" rel="noopener" class="text-sky-600 dark:text-sky-400 hover:underline">Resolución (BCN)</a>`);
+      }
+      if (props.url_simbio) {
+        links.push(`<a href="${escapeHtml(props.url_simbio)}" target="_blank" rel="noopener" class="text-sky-600 dark:text-sky-400 hover:underline">SIMBIO (MMA)</a>`);
+      }
+      const linksHtml = links.length
+        ? `<div class="flex gap-3 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">${links.join('')}</div>`
+        : '';
+
+      return `
+        <div class="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 p-3 min-w-[220px] max-w-[300px]">
+          <div class="text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400 mb-2 border-b border-slate-100 dark:border-slate-800 pb-1">
+            ${escapeHtml(props.nombre_humedal || 'Humedal')}
+          </div>
+          <div class="space-y-1.5 text-xs">${body}</div>
+          ${linksHtml}
+        </div>`;
+    }
+
+    function buildEstablecimientoPopupHtml(props) {
+      const ton = (props.toneladas_totales !== undefined && props.toneladas_totales !== null && props.toneladas_totales !== '')
+        ? `${Number(props.toneladas_totales).toLocaleString('es-CL', { maximumFractionDigits: 2 })} ton`
+        : '—';
+
+      const rows = [
+        ['Razón social', props.razon_social],
+        ['Rubro', props.rubro],
+        ['Región', props.region],
+        ['Comuna', props.comuna],
+        ['Tipo recepción', props.tipo_recepcion],
+        ['Declaraciones', props.n_declaraciones],
+        ['Toneladas', ton]
+      ].filter(([, value]) => value !== undefined && value !== null && value !== '');
+
+      const body = rows.map(([key, value]) => `
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-500 dark:text-slate-400">${escapeHtml(key)}:</span>
+          <span class="font-medium text-right">${escapeHtml(value)}</span>
+        </div>`).join('');
+
+      return `
+        <div class="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 p-3 min-w-[220px] max-w-[300px]">
+          <div class="text-xs font-bold uppercase tracking-wider text-swiss-accent mb-2 border-b border-slate-100 dark:border-slate-800 pb-1">
+            ${escapeHtml(props.nombre_establecimiento || 'Establecimiento')}
+          </div>
+          <div class="space-y-1.5 text-xs">${body}</div>
+        </div>`;
+    }
+
+    /**
+     * BOTÓN PARA RE-CENTRAR EN LA CAPA
+     */
+    document.getElementById('btn-fit-bounds').addEventListener('click', () => {
+      if (state.currentBounds) {
+        map.fitBounds(state.currentBounds, { padding: 60, maxZoom: 16, duration: 1000 });
+      }
+    });
+
+    /**
+     * INICIO TRAS LA CARGA DEL MAPA
+     */
+    map.on('load', () => {
+      applyTheme(state.isDarkMode);
+      loadGeoJsonLayer();
+      // La capa secundaria se carga solo cuando MapLibre y su estilo están listos.
+      if (map.isStyleLoaded()) {
+        loadSecondaryLayer();
+      } else {
+        map.once('idle', loadSecondaryLayer);
+      }
+      // El dashboard carga Chart.js bajo demanda y se dibuja con los datos disponibles.
+      initDashboard();
+    });
+  </script>
+</body>
+</html>

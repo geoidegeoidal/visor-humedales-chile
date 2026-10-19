@@ -1,0 +1,74 @@
+{
+  "type": "FeatureCollection",
+  "name": "capa_demo",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1,
+        "nombre": "Zona Central",
+        "categoria": "Parque Urbano",
+        "descripcion": "Área verde principal con equipamiento comunitario.",
+        "area_ha": 14.5
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-70.660, -33.445],
+            [-70.650, -33.445],
+            [-70.650, -33.455],
+            [-70.660, -33.455],
+            [-70.660, -33.445]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2,
+        "nombre": "Eje Vial Conector",
+        "categoria": "Infraestructura",
+        "descripcion": "Avenida principal con ciclovía integrada.",
+        "longitud_km": 3.2
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-70.665, -33.440],
+          [-70.655, -33.448],
+          [-70.645, -33.452]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 3,
+        "nombre": "Estación de Monitoreo A",
+        "categoria": "Sensor Ambiental",
+        "descripcion": "Sensor IoT para medición de calidad del aire y temperatura.",
+        "estado": "Operativo"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-70.653, -33.450]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 4,
+        "nombre": "Estación de Monitoreo B",
+        "categoria": "Sensor Ambiental",
+        "descripcion": "Sensor de humedad relativa y ruido urbano.",
+        "estado": "Operativo"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-70.658, -33.448]
+      }
+    }
+  ]
+}
