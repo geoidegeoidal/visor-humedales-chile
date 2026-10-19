@@ -2,7 +2,9 @@
 
 Visor geoespacial web, **100% del lado del cliente** (sin servidor ni claves de API), para explorar, filtrar y analizar los **Humedales Urbanos de Chile** junto con el registro **SINADER 2024** de declaraciones de residuos de establecimientos.
 
-> Página pública (una vez activado GitHub Pages): https://geoidegeoidal.github.io/visor-humedales-chile/
+> Página pública: https://julloa.space/visor-humedales-chile/
+>
+> Alternativa: https://geoidegeoidal.github.io/visor-humedales-chile/
 
 ## ¿Qué muestra?
 
@@ -22,7 +24,7 @@ Visor geoespacial web, **100% del lado del cliente** (sin servidor ni claves de 
 
 ### En línea
 
-Abre la dirección de GitHub Pages indicada arriba.
+Abre la dirección principal indicada arriba (o su alternativa).
 
 ### En tu computadora
 
