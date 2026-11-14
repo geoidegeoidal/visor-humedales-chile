@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Visor Humedales Urbanos · Flujo de capas</title>
+  <style>
+    body { margin: 0; background: #FFFFFF; }
+    main { max-width: 960px; margin: auto; }
+    svg { display: block; width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+<main>
+<!-- Source: README.md capabilities and data contract; index.html Swiss tokens and Inter family.
+     System font fallbacks keep this source portable without external resources.
+     Edit the inline SVG and re-extract the actual SVG element verbatim into layer-workflow.svg. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600" viewBox="0 0 960 600" role="img" aria-labelledby="layer-workflow-title layer-workflow-desc">
+  <title id="layer-workflow-title">De las capas a la exportación</title>
+  <desc id="layer-workflow-desc">Dos capas GeoJSON versionadas alimentan los filtros del mapa y dashboard. El usuario puede calcular áreas de influencia o exportar subconjuntos filtrados. No son datos en tiempo real y los servicios externos requieren red.</desc>
+  <defs>
+    <marker id="layer-workflow-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 8 4 L 0 8 Z" fill="#000000"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: Inter, 'Helvetica Neue', Arial, sans-serif; fill: #000000; }
+    .heading { font-size: 24px; font-weight: 700; }
+    .detail { font-size: 20px; }
+    .mono { font-family: Consolas, 'Liberation Mono', monospace; font-size: 18px; }
+    .node { fill: #F2F2F2; stroke: #000000; stroke-width: 2; }
+    .flow { fill: none; stroke: #000000; stroke-width: 2; marker-end: url(#layer-workflow-arrow); }
+    .optional { stroke-dasharray: 6 5; }
+  </style>
+  <rect width="960" height="600" fill="#FFFFFF"/>
+  <rect x="32" y="32" width="8" height="64" fill="#FF3000"/>
+  <text x="56" y="52" font-size="16" font-weight="700" letter-spacing="2">VISOR HUMEDALES URBANOS · CHILE</text>
+  <text x="56" y="92" font-size="32" font-weight="900">De las capas a la exportación</text>
+  <text x="32" y="132" class="detail">Datos incluidos en el sitio. Procesamiento en el navegador.</text>
+
+  <!-- Connections precede nodes. Two independent optional actions, not a pipeline. -->
+  <path class="flow" d="M 372 224 H 392 Q 400 224 400 232 V 244 Q 400 252 408 252 H 432"/>
+  <path class="flow" d="M 372 352 H 392 Q 400 352 400 344 V 328 Q 400 320 408 320 H 432"/>
+  <path class="flow" d="M 632 288 H 688"/>
+  <path class="flow optional" d="M 748 360 V 388 Q 748 396 740 396 H 552 Q 544 396 544 404 V 432"/>
+  <path class="flow optional" d="M 864 360 V 432"/>
+
+  <rect x="32" y="172" width="340" height="104" class="node"/>
+  <text x="48" y="204" class="heading">Humedales Urbanos</text>
+  <text x="48" y="232" class="mono">data/</text>
+  <text x="48" y="256" class="mono">humedales_urbanos.geojson</text>
+
+  <rect x="32" y="300" width="340" height="104" class="node"/>
+  <text x="48" y="332" class="heading">SINADER 2024</text>
+  <text x="48" y="360" class="mono">data/</text>
+  <text x="48" y="384" class="mono">sinader_2024.geojson</text>
+
+  <rect x="432" y="216" width="200" height="144" class="node"/>
+  <text x="448" y="248" class="heading">Filtros</text>
+  <text x="448" y="280" class="detail">Territorio y</text>
+  <text x="448" y="308" class="detail">atributos</text>
+  <text x="448" y="336" class="detail">seleccionados</text>
+
+  <rect x="688" y="216" width="240" height="144" fill="#FFFFFF" stroke="#FF3000" stroke-width="3"/>
+  <rect x="688" y="216" width="8" height="144" fill="#FF3000"/>
+  <text x="712" y="248" class="heading">Mapa +</text>
+  <text x="712" y="280" class="heading">dashboard</text>
+  <text x="712" y="308" class="detail">Capas y gráficos</text>
+  <text x="712" y="336" class="detail">sincronizados</text>
+
+  <text x="32" y="460" font-size="20" font-weight="700">ACCIONES OPCIONALES</text>
+  <text x="32" y="492" class="detail">Elige según tu consulta.</text>
+  <rect x="432" y="432" width="220" height="104" class="node"/>
+  <text x="448" y="464" class="heading">Analizar</text>
+  <text x="448" y="496" class="detail">Áreas de influencia</text>
+  <text x="448" y="524" class="detail">en metros</text>
+  <rect x="688" y="432" width="240" height="104" class="node"/>
+  <text x="704" y="464" class="heading">Exportar filtros</text>
+  <text x="704" y="496" class="detail">GeoJSON o</text>
+  <text x="704" y="524" class="detail">Shapefile ZIP</text>
+
+  <path d="M 32 552 H 928" stroke="#000000"/>
+  <text x="32" y="584" class="detail">No es información en tiempo real. Mapas base y recursos CDN necesitan red.</text>
+</svg>
+</main>
+</body>
+</html>
