@@ -37,6 +37,15 @@ Visor geoespacial web para explorar los **Humedales Urbanos de Chile** junto con
 - **Humedales Urbanos:** polígonos con región, comuna, superficie, proceso de declaratoria y resolución.
 - **SINADER 2024:** puntos de establecimientos generadores de residuos, con rubro, declaraciones y toneladas declaradas.
 
+### De las capas a la exportación
+
+![Dos capas GeoJSON versionadas pasan por filtros al mapa y dashboard; analizar áreas de influencia y exportar los subconjuntos filtrados son acciones opcionales.](docs/readme/layer-workflow.svg)
+
+Los archivos incluidos alimentan los filtros del mapa y del dashboard. Puedes calcular
+áreas de influencia o exportar los subconjuntos filtrados; no necesitas realizar un análisis
+antes de exportar. Las capas no se actualizan en tiempo real y los recursos externos siguen
+necesitando conexión. [Fuente editable del diagrama](docs/readme/layer-workflow.html).
+
 ### Primer recorrido
 
 1. Abre el visor y elige las capas que quieres consultar.
